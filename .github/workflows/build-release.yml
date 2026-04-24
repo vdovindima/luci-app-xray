@@ -13,6 +13,8 @@ env:
 jobs:
   release:
     name: Build for ${{ matrix.target }}
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
