@@ -12,15 +12,15 @@ env:
 
 jobs:
   release:
-    name: Build for ${{ matrix.arch }}
+    name: Build for ${{ matrix.target }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          - arch: x86_64
-            sdk_url_path: https://downloads.openwrt.org/releases/23.05.5/targets/x86/64
-            sdk_name: -sdk-23.05.5-x86-64_
+          - target: mediatek/filogic
+            sdk_url_path: https://downloads.openwrt.org/releases/25.12.2/targets/mediatek/filogic
+            sdk_name: -sdk-25.12.2-mediatek-filogic_
 
     env:
       SDK_URL_PATH: ${{ matrix.sdk_url_path }}
@@ -29,11 +29,11 @@ jobs:
       CONFIG_CCACHE: y
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Prepare Cache Key
         id: cache_key
-        run: echo "::set-output name=timestamp::$(date +"%s")"
+        run: echo "timestamp=$(date +"%s")" >> "$GITHUB_OUTPUT"
 
       - name: Setup Cache
         uses: actions/cache@v4
@@ -41,12 +41,12 @@ jobs:
           path: |
             ${{ env.CACHE_DIR }}
             ${{ env.CCACHE_DIR }}
-          key: openwrt-${{ matrix.arch }}-${{ env.PACKAGE_NAME }}-${{ steps.cache_key.outputs.timestamp }}
+          key: openwrt-${{ matrix.target }}-${{ env.PACKAGE_NAME }}-${{ steps.cache_key.outputs.timestamp }}
           restore-keys: |
-            openwrt-${{ matrix.arch }}-${{ env.PACKAGE_NAME }}-
+            openwrt-${{ matrix.target }}-${{ env.PACKAGE_NAME }}-
       - name: Install Dependencies
         run: |
-          DEBIAN_FRONTEND=noninteractive sudo apt-get install -y ccache gettext libncurses5-dev xsltproc p7zip-full
+          DEBIAN_FRONTEND=noninteractive sudo apt-get install -y ccache gettext libncurses5-dev xsltproc zstd
       - name: Create Directories
         run: |
           CACHE_DIR_SDK="$(eval echo "$CACHE_DIR/sdk")"
@@ -79,7 +79,7 @@ jobs:
           fi
           cd -
           file "$CACHE_DIR_SDK/$SDK_FILE"
-          7z x "$CACHE_DIR_SDK/$SDK_FILE" -so | tar -C "$SDK_HOME" -xvf - --strip=1
+          zstd -dc "$CACHE_DIR_SDK/$SDK_FILE" | tar -C "$SDK_HOME" -xvf - --strip=1
           cd "$SDK_HOME"
           test -d "dl" && rm -rf "dl" || true
           test -d "feeds" && rm -rf "feeds" || true
@@ -102,17 +102,21 @@ jobs:
         run: |
           cd "$SDK_HOME"
           make defconfig
+          make package/${PACKAGE_NAME}/core/{clean,compile} V=s
+          make package/${PACKAGE_NAME}/geodata/{clean,compile} V=s
           make package/${PACKAGE_NAME}/status/{clean,compile} V=s
-          find "$SDK_HOME/bin/" -type f -name "*.ipk" -exec ls -lh {} \;
+          find "$SDK_HOME/bin/" -type f \( -name "*.apk" -o -name "*.ipk" \) -exec ls -lh {} \;
           cd -
       - name: Copy Bin Files
         run: |
-          find "$SDK_HOME/bin/" -type f -name "${PACKAGE_NAME}*.ipk" -exec cp {} "${{ github.workspace }}" \;
-          find "${{ github.workspace }}" -type f -name "*.ipk" -exec ls -lh {} \;
+          find "$SDK_HOME/bin/" -type f \( -name "${PACKAGE_NAME}*.apk" -o -name "${PACKAGE_NAME}*.ipk" \) -exec cp {} "${{ github.workspace }}" \;
+          find "${{ github.workspace }}" -type f \( -name "*.apk" -o -name "*.ipk" \) -exec ls -lh {} \;
       - name: Release and Upload Assets
         uses: softprops/action-gh-release@v1
         with:
-          files: "*.ipk"
+          files: |
+            *.apk
+            *.ipk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

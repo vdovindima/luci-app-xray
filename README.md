@@ -32,13 +32,28 @@ Choose one below:
 
 Then find `luci-app-xray` under `Extra Packages`.
 
-## Installation (Use GitHub actions to build ipks)
+## Installation (Use GitHub actions to build packages)
 
 Fork this repository and:
 
 * Create a release by pushing a tag
 * Wait until actions finish
-* Use `opkg -i *` to install all ipks from Releases.
+* Download packages from Releases and install them on router:
+  * `apk add --allow-untrusted *.apk` (OpenWrt 25.x / apk)
+  * `opkg install *.ipk` (older opkg-based builds)
+
+### Install on OpenWrt 25.x (opkg / apk compatible)
+
+This repository can be built as feed packages for newer OpenWrt snapshots/releases (including 25.12.x).
+After building, install packages on the router with the package manager available in your firmware:
+
+```sh
+if command -v apk >/dev/null 2>&1; then
+  apk add --allow-untrusted luci-app-xray*.apk luci-app-xray-geodata*.apk luci-app-xray-status*.apk
+else
+  opkg install luci-app-xray*.ipk luci-app-xray-geodata*.ipk luci-app-xray-status*.ipk
+fi
+```
 
 ## Enable preview app
 
