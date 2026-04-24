@@ -62,8 +62,8 @@ endef
 
 define Package/$(PKG_NAME)/postinst
 #!/bin/sh
-if [[ -z "$${IPKG_INSTROOT}" ]]; then
-	if [[ -f /etc/uci-defaults/xray_core ]]; then
+if [ -z "$${IPKG_INSTROOT}" ] && [ -z "$${APK_INSTROOT}" ]; then
+	if [ -f /etc/uci-defaults/xray_core ]; then
 		( . /etc/uci-defaults/xray_core ) && rm -f /etc/uci-defaults/xray_core
 	fi
 	rm -rf /tmp/luci-indexcache* /tmp/luci-modulecache
